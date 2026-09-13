@@ -36,5 +36,7 @@ RUN chmod +x /entrypoint.sh && chown -R gowauser:gowa /app
 
 # Root only for entrypoint (ownership fix on volumes); process becomes gowauser.
 USER root
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+	CMD wget -qO- "http://127.0.0.1:${APP_PORT:-3000}/health" >/dev/null || exit 1
 ENTRYPOINT ["/entrypoint.sh"]
 CMD [ "rest" ]
