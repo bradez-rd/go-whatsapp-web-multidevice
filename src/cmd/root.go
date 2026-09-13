@@ -91,6 +91,9 @@ func initEnvConfig() {
 	if envOs := viper.GetString("app_os"); envOs != "" {
 		config.AppOs = envOs
 	}
+	if envUserAgent := viper.GetString("app_user_agent"); envUserAgent != "" {
+		config.AppUserAgent = envUserAgent
+	}
 	if envBasicAuth := viper.GetString("app_basic_auth"); envBasicAuth != "" {
 		credential := strings.Split(envBasicAuth, ",")
 		config.AppBasicAuthCredential = credential
@@ -323,6 +326,12 @@ func initFlags() {
 		"os", "",
 		config.AppOs,
 		`os name --os <string> | example: --os="Chrome"`,
+	)
+	rootCmd.PersistentFlags().StringVarP(
+		&config.AppUserAgent,
+		"user-agent", "",
+		config.AppUserAgent,
+		`http user agent --user-agent <string>`,
 	)
 	rootCmd.PersistentFlags().StringSliceVarP(
 		&config.AppBasicAuthCredential,

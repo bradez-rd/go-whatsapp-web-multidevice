@@ -62,6 +62,7 @@ func submitWebhook(ctx context.Context, payload map[string]any, url string, webh
 	}
 
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", config.AppUserAgent)
 	req.Header.Set("X-Hub-Signature-256", fmt.Sprintf("sha256=%s", signature))
 
 	var attempt int

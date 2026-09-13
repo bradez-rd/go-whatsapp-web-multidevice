@@ -146,7 +146,7 @@ func newBrowserRequest(method, reqURL string) (*http.Request, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
+	req.Header.Set("User-Agent", config.AppUserAgent)
 	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8")
 	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
 	req.Header.Set("Referer", reqURL)
@@ -354,7 +354,11 @@ func DownloadImageFromURL(url string) ([]byte, string, error) {
 			return nil
 		},
 	}
-	response, err := client.Get(url)
+	req, err := newBrowserRequest(http.MethodGet, url)
+	if err != nil {
+		return nil, "", err
+	}
+	response, err := client.Do(req)
 	if err != nil {
 		return nil, "", err
 	}
@@ -411,7 +415,11 @@ func DownloadAudioFromURL(audioURL string) ([]byte, string, error) {
 		},
 	}
 
-	resp, err := client.Get(audioURL)
+	req, err := newBrowserRequest(http.MethodGet, audioURL)
+	if err != nil {
+		return nil, "", err
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, "", err
 	}
@@ -502,7 +510,11 @@ func DownloadVideoFromURL(videoURL string) ([]byte, string, error) {
 		},
 	}
 
-	resp, err := client.Get(videoURL)
+	req, err := newBrowserRequest(http.MethodGet, videoURL)
+	if err != nil {
+		return nil, "", err
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, "", err
 	}
@@ -618,7 +630,11 @@ func DownloadFileFromURL(fileURL string) ([]byte, string, error) {
 		},
 	}
 
-	resp, err := client.Get(fileURL)
+	req, err := newBrowserRequest(http.MethodGet, fileURL)
+	if err != nil {
+		return nil, "", err
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, "", err
 	}

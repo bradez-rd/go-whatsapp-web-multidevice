@@ -11,8 +11,9 @@ var (
 	AppPort                = "3000"
 	AppHost                = "0.0.0.0"
 	AppDebug               = false
-	AppOs                  = "GOWA"
+	AppOs                  = "Chrome (Windows)"
 	AppPlatform            = waCompanionReg.DeviceProps_PlatformType(1)
+	AppUserAgent           = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 	AppBasicAuthCredential []string
 	AppBasePath            = ""
 	AppTrustedProxies      []string // Trusted proxy IP ranges (e.g., "0.0.0.0/0" for all, or specific CIDRs)
