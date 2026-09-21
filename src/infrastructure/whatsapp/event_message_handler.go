@@ -179,11 +179,10 @@ func handleWebhookForward(ctx context.Context, evt *events.Message, client *what
 		}
 	}
 
-	// Broadcast/status messages are never forwarded, regardless of Chatwoot:
-	// the Chatwoot pipeline rejects status@broadcast (a relayed status post
-	// would only spawn a noise "Status" contact), and plain webhook consumers
-	// must not receive broadcast noise just because Chatwoot is enabled.
-	if strings.Contains(evt.Info.SourceString(), "broadcast") {
+	// Keep ordinary broadcast lists out of generic webhooks. Status posts are
+	// intentionally different: consumers can opt in to the dedicated
+	// status.message event and persist them outside their normal chat inbox.
+	if strings.Contains(evt.Info.SourceString(), "broadcast") && !isStatusBroadcastEvent(evt) {
 		return
 	}
 
@@ -200,4 +199,12 @@ func handleWebhookForward(ctx context.Context, evt *events.Message, client *what
 			logrus.Error("Failed forward to webhook: ", err)
 		}
 	}(evt, client, pollPayload)
+}
+
+func isStatusBroadcastEvent(evt *events.Message) bool {
+	if evt == nil {
+		return false
+	}
+	chat := evt.Info.Chat
+	return chat.Server == types.BroadcastServer && chat.User == "status"
 }

@@ -130,7 +130,7 @@ func TestHandleMessagePersistsPollBeforeForwardingWebhook(t *testing.T) {
 	}
 }
 
-func TestHandleWebhookForwardSkipsBroadcastRegardlessOfChatwoot(t *testing.T) {
+func TestHandleWebhookForwardForwardsStatusAsDedicatedEvent(t *testing.T) {
 	originalWebhookURLs := config.WhatsappWebhook
 	originalWebhookEvents := config.WhatsappWebhookEvents
 	originalChatwootEnabled := config.ChatwootEnabled
@@ -154,42 +154,37 @@ func TestHandleWebhookForwardSkipsBroadcastRegardlessOfChatwoot(t *testing.T) {
 		return nil
 	}
 
-	// Broadcast/status messages must never reach webhooks, whether Chatwoot is
-	// enabled or not: the Chatwoot pipeline rejects status@broadcast anyway,
-	// and plain webhook consumers must not start receiving broadcast noise
-	// just because Chatwoot is turned on (regression from PR #671).
+	// Status posts use a dedicated event so webhook consumers can persist them
+	// outside the chat inbox. This remains safe with Chatwoot enabled because
+	// its own routing rejects the system broadcast JID.
 	statusChat := types.NewJID("status", types.BroadcastServer)
-	for _, chatwootEnabled := range []bool{false, true} {
-		config.ChatwootEnabled = chatwootEnabled
-		handleWebhookForward(context.Background(), textEventForTest("broadcast-1", statusChat), nil)
-	}
+	config.ChatwootEnabled = true
+	handleWebhookForward(context.Background(), textEventForTest("status-1", statusChat), nil)
 
-	// Control: a regular DM must still be forwarded, so the guard is proven
-	// to filter broadcasts specifically rather than everything.
+	// A regular direct message keeps the generic event contract.
 	config.ChatwootEnabled = false
 	dmChat := types.NewJID("628123456789", types.DefaultUserServer)
 	handleWebhookForward(context.Background(), textEventForTest("dm-1", dmChat), nil)
 
-	select {
-	case payload := <-delivered:
-		eventPayload, ok := payload["payload"].(map[string]any)
-		if !ok {
-			t.Fatalf("expected payload map, got %T", payload["payload"])
+	seen := map[string]string{}
+	deadline := time.After(2 * time.Second)
+	for len(seen) < 2 {
+		select {
+		case payload := <-delivered:
+			eventPayload, ok := payload["payload"].(map[string]any)
+			if !ok {
+				t.Fatalf("expected payload map, got %T", payload["payload"])
+			}
+			seen[eventPayload["id"].(string)] = payload["event"].(string)
+		case <-deadline:
+			t.Fatalf("timed out waiting for webhook submissions: %+v", seen)
 		}
-		if got := eventPayload["id"]; got != "dm-1" {
-			t.Fatalf("expected control message dm-1 to be forwarded, got %v", got)
-		}
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for control message webhook submission")
 	}
-
-	// Give any (buggy) broadcast forwarding goroutines time to land, then
-	// assert nothing else was delivered.
-	time.Sleep(200 * time.Millisecond)
-	select {
-	case payload := <-delivered:
-		t.Fatalf("broadcast message was forwarded to webhook: %+v", payload)
-	default:
+	if seen["status-1"] != EventTypeStatusMessage {
+		t.Fatalf("status event = %q, want %q", seen["status-1"], EventTypeStatusMessage)
+	}
+	if seen["dm-1"] != EventTypeMessage {
+		t.Fatalf("direct message event = %q, want %q", seen["dm-1"], EventTypeMessage)
 	}
 }
 

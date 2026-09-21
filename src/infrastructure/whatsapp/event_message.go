@@ -23,6 +23,7 @@ var reMention = regexp.MustCompile(`\B@\w+`)
 // Event types for webhook payload
 const (
 	EventTypeMessage         = "message"
+	EventTypeStatusMessage   = "status.message"
 	EventTypeMessageReaction = "message.reaction"
 	EventTypeMessageRevoked  = "message.revoked"
 	EventTypeMessageEdited   = "message.edited"
@@ -84,6 +85,9 @@ func createWebhookEvent(ctx context.Context, client *whatsmeow.Client, evt *even
 	}
 
 	webhookEvent.Event = eventType
+	if eventType == EventTypeMessage && isStatusBroadcastEvent(evt) {
+		webhookEvent.Event = EventTypeStatusMessage
+	}
 	webhookEvent.Payload = payload
 
 	return webhookEvent, nil
