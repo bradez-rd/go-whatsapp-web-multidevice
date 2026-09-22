@@ -54,7 +54,7 @@ func handler(ctx context.Context, instance *DeviceInstance, rawEvt any) {
 	case *events.Message:
 		handleMessage(ctx, evt, chatStorageRepo, client)
 	case *events.UndecryptableMessage:
-		handleUndecryptableMessage(evt)
+		handleUndecryptableMessage(ctx, evt, client)
 	case *events.Receipt:
 		handleReceipt(ctx, evt, instance.JID(), client)
 	case *events.Archive:
@@ -86,12 +86,40 @@ func handler(ctx context.Context, instance *DeviceInstance, rawEvt any) {
 	instance.UpdateStateFromClient()
 }
 
-// handleUndecryptableMessage surfaces messages that arrived but could not be
-// decrypted. They carry no plaintext, so there is nothing to store or forward,
-// but dropping them without a trace makes the common "messages from this
-// contact never arrive" report impossible to diagnose.
-func handleUndecryptableMessage(evt *events.UndecryptableMessage) {
-	log.Warnf("Undecryptable message %s from %s (unavailable: %v, type: %q, fail mode: %q). No webhook or storage entry is produced for it.",
+// handleUndecryptableMessage forwards the envelope WhatsApp made available.
+// There is no plaintext or media to synthesize, but the receiving application
+// still needs the message identity and the reason it cannot be rendered.
+func handleUndecryptableMessage(ctx context.Context, evt *events.UndecryptableMessage, client *whatsmeow.Client) {
+	payload := map[string]any{
+		"id":                evt.Info.ID,
+		"timestamp":         evt.Info.Timestamp.Format(time.RFC3339),
+		"is_from_me":        evt.Info.IsFromMe,
+		"from":              evt.Info.Sender.String(),
+		"chat_id":           evt.Info.Chat.String(),
+		"availability":      "NOT_EXPOSED",
+		"unavailable":       evt.IsUnavailable,
+		"unavailable_type":  evt.UnavailableType,
+		"decrypt_fail_mode": evt.DecryptFailMode,
+	}
+	if evt.Info.PushName != "" {
+		payload["from_name"] = evt.Info.PushName
+	}
+
+	deviceID := ""
+	if client != nil && client.Store != nil && client.Store.ID != nil {
+		deviceJID := NormalizeJIDFromLID(ctx, client.Store.ID.ToNonAD(), client)
+		deviceID = deviceJID.ToNonAD().String()
+	}
+	webhookPayload := map[string]any{
+		"event":     EventTypeMessage,
+		"device_id": deviceID,
+		"payload":   payload,
+	}
+	if err := forwardPayloadToConfiguredWebhooks(ctx, webhookPayload, EventTypeMessage); err != nil {
+		log.WithError(err).Warnf("Failed to forward undecryptable message %s", evt.Info.ID)
+	}
+
+	log.Warnf("Undecryptable message %s from %s forwarded without content (unavailable: %v, type: %q, fail mode: %q).",
 		evt.Info.ID,
 		evt.Info.SourceString(),
 		evt.IsUnavailable,
