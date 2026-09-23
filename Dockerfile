@@ -11,7 +11,9 @@ RUN go mod download
 
 # Copy source and build
 COPY ./src .
-RUN go build -ldflags="-w -s" -o /app/whatsapp
+# Keep package progress visible so remote builders do not cancel a long,
+# otherwise silent compilation as an idle command.
+RUN go build -v -ldflags="-w -s" -o /app/whatsapp
 
 ############################
 ## STEP 2 build a smaller image
