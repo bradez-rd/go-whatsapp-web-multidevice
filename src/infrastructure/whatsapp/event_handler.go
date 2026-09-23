@@ -116,7 +116,7 @@ func handleUndecryptableMessage(ctx context.Context, evt *events.UndecryptableMe
 		"payload":   payload,
 	}
 	if err := forwardPayloadToConfiguredWebhooks(ctx, webhookPayload, EventTypeMessage); err != nil {
-		log.WithError(err).Warnf("Failed to forward undecryptable message %s", evt.Info.ID)
+		log.Warnf("Failed to forward undecryptable message %s: %v", evt.Info.ID, err)
 	}
 
 	log.Warnf("Undecryptable message %s from %s forwarded without content (unavailable: %v, type: %q, fail mode: %q).",
